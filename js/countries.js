@@ -4,26 +4,86 @@
 //
 //   id      -> nombre de la carpeta dentro de /photos (sin espacios)
 //   nombre  -> lo que se verá en la web
+//   bandera -> emoji (puede ser una bandera, un pin, lo que quieras)
 //   fecha   -> texto libre, ej: "Sept 2023" o "Verano 2022"
 //   nota    -> una frase corta y bonita para el recuerdo
 // ============================================================
 const COUNTRIES = [
   {
-    id: "LEKEITIO",
-    nombre: "LEKEITIO",
-    fecha: "Uda 2026",
-    nota: "Mucho descanso, poca fiesta",
+    id: "elantxobe",
+    nombre: "Elantxobe",
+    bandera: "🎉",
+    fecha: "Uztailak 23",
+    nota: "",
   },
   {
-    id: "Mutriku",
+    id: "paellas",
+    nombre: "Paellas",
+    bandera: "🎉",
+    fecha: "Uztailak 25",
+    nota: "",
+  },
+  {
+    id: "ispaster",
+    nombre: "Ispaster",
+    bandera: "🎉",
+    fecha: "Uztailak 27",
+    nota: "",
+  },
+  {
+    id: "mendexa",
+    nombre: "Mendexa",
+    bandera: "🎉",
+    fecha: "Uzt-Abst 30-2",
+    nota: "",
+  },
+  {
+    id: "mutriku",
     nombre: "Mutriku",
+    bandera: "📍",
     fecha: "Abustuak 4",
-    nota: "Raspando multita por aparcamiento...",
+    nota: "",
   },
   {
-    id: "Gazte Eguna",
+    id: "gazte-eguna",
     nombre: "Gazte Eguna",
+    bandera: "🎉",
     fecha: "Abustuak 8",
-    nota: "Se ve que a algunos se les complica abrir puertas...",
+    nota: "",
+  },
+  {
+    id: "karraspio-gainean",
+    nombre: "Karraspio gainean",
+    bandera: "📍",
+    fecha: "Abustuak 10",
+    nota: "",
+  },
+  {
+    id: "lurgorri",
+    nombre: "Lurgorri",
+    bandera: "🎉",
+    fecha: "Abustuak 12",
+    nota: "",
+  },
+  {
+    id: "gernika",
+    nombre: "Gernika",
+    bandera: "🎉",
+    fecha: "Abustuak 17",
+    nota: "",
+  },
+  {
+    id: "aste-nagusi",
+    nombre: "Aste Nagusi",
+    bandera: "🎉",
+    fecha: "Abustuak 23-30",
+    nota: "",
+  },
+  {
+    id: "lekeitio",
+    nombre: "Lekeitio",
+    bandera: "🎉",
+    fecha: "Irailak 1-5",
+    nota: "",
   },
 ];
