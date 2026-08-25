@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Álbum de viaje</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#b8895b" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Caveat:wght@500;700&family=Special+Elite&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="album-header" id="album-header" aria-live="polite">
+    <!-- Cabecera del billete/postal, generada por JavaScript -->
+  </header>
+
+  <main class="gallery" id="gallery" aria-live="polite">
+    <!-- Fotos generadas por JavaScript -->
+  </main>
+
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto ampliada">
+    <button class="lightbox-close" aria-label="Cerrar">&times;</button>
+    <button class="lightbox-prev" aria-label="Foto anterior">&#8249;</button>
+    <img id="lightbox-img" src="" alt="" />
+    <button class="lightbox-next" aria-label="Foto siguiente">&#8250;</button>
+    <span class="lightbox-counter" id="lightbox-counter"></span>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/countries.js"></script>
+  <script src="js/github.js"></script>
+  <script src="js/album.js"></script>
+</body>
+</html>
