@@ -10,11 +10,11 @@
 // ============================================================
 const COUNTRIES = [
   {
-    id: "italia",
-    nombre: "Italia",
-    bandera: "🇮🇹",
-    fecha: "Octubre 2023",
-    nota: "Pasta, sol y demasiadas escaleras.",
+    id: "LEKEITIO",
+    nombre: "LEKEITIO",
+    bandera: "LK",
+    fecha: "Verano 2026",
+    nota: "Mucho descanso, poca fiesta",
   },
   {
     id: "francia",
