@@ -4,7 +4,7 @@
 // ============================================================
 const SITE_CONFIG = {
   // Tu nombre de usuario de GitHub, ej: "marcasanova"
-  githubUser: "TU-USUARIO-DE-GITHUB",
+  githubUser: "anderbasa",
 
   // El nombre del repositorio, ej: "webapp-nfc"
   githubRepo: "webapp-nfc",
