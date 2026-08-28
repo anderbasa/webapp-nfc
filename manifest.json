@@ -1,7 +1,7 @@
 {
-  "name": "Diario de viajes",
-  "short_name": "Diario de viajes",
-  "description": "Un imán, un recuerdo. Escanea y revive el viaje.",
+  "name": "UDA 2026",
+  "short_name": "UDA 2026",
+  "description": "Gure oroitzapenen bilduma. Escanea y revive el verano.",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#b8895b",
