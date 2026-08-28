@@ -455,6 +455,16 @@ button:focus-visible,
 @media (max-width: 560px) {
   .lightbox-prev { left: 0.6rem; }
   .lightbox-next { right: 0.6rem; }
-  .magnet { width: 160px; }
-  .polaroid { width: 180px; }
+
+  .board {
+    padding: 1.5rem 0.9rem 4rem;
+    gap: 1.6rem 0.9rem;
+  }
+  .magnet { width: calc(50% - 0.45rem); }
+
+  .gallery {
+    padding: 1.5rem 0.9rem 4rem;
+    gap: 1.4rem 0.9rem;
+  }
+  .polaroid { width: calc(50% - 0.45rem); }
 }
