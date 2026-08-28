@@ -70,7 +70,7 @@ const COUNTRIES = [
     nombre: "Gernika",
     bandera: "🎉",
     fecha: "Abustuak 17",
-    nota: "",
+    nota: "Inolvidable txupito with helen",
   },
   {
     id: "aste-nagusi",
