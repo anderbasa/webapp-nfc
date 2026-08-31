@@ -2,10 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Álbum de viaje</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Álbum — UDA 2026</title>
+  <meta name="description" content="Las fotos de este momento del verano." />
+
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <meta name="theme-color" content="#b8895b" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Un recuerdo de UDA 2026" />
+  <meta property="og:description" content="Escanea el imán y revive el momento." />
+  <meta property="og:image" content="icon-512.png" />
+  <meta name="twitter:card" content="summary" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Caveat:wght@500;700&family=Special+Elite&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
@@ -21,9 +32,10 @@
   </main>
 
   <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto ampliada">
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    <div class="lightbox-track" id="lightbox-track"></div>
     <button class="lightbox-close" aria-label="Cerrar">&times;</button>
     <button class="lightbox-prev" aria-label="Foto anterior">&#8249;</button>
-    <img id="lightbox-img" src="" alt="" />
     <button class="lightbox-next" aria-label="Foto siguiente">&#8250;</button>
     <span class="lightbox-counter" id="lightbox-counter"></span>
   </div>
@@ -31,6 +43,9 @@
   <script src="js/config.js"></script>
   <script src="js/countries.js"></script>
   <script src="js/github.js"></script>
+  <script src="js/photos.js"></script>
+  <script src="js/spring.js"></script>
   <script src="js/album.js"></script>
+  <script src="js/register-sw.js"></script>
 </body>
 </html>

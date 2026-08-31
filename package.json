@@ -1,0 +1,15 @@
+{
+  "name": "webapp-nfc",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Corcho de imanes NFC: cada imán abre el álbum de fotos de ese momento.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "devDependencies": {
+    "exifr": "^7.1.3",
+    "sharp": "^0.35.4"
+  }
+}

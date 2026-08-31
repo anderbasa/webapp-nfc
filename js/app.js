@@ -1,41 +1,71 @@
-// Renderiza el "corcho" de la home con un imán por cada país.
-// La foto de portada de cada imán es simplemente la primera foto
-// que encuentre en /photos/<id>/ dentro de tu repo de GitHub.
+// Dibuja el "corcho" de la home: un imán por cada viaje de countries.js.
+// La portada de cada imán es la primera foto del álbum, servida ya como
+// miniatura ligera desde el catálogo (data/photos.json).
 
 (async function () {
   const board = document.getElementById("board");
-  if (!COUNTRIES || COUNTRIES.length === 0) {
+
+  if (!Array.isArray(COUNTRIES) || COUNTRIES.length === 0) {
     board.innerHTML = `<p class="board-empty">Aún no hay ningún viaje añadido.<br>Edita <code>js/countries.js</code> para crear tu primer imán.</p>`;
     return;
   }
 
-  board.innerHTML = COUNTRIES.map((c) => magnetSkeleton(c)).join("");
+  board.innerHTML = COUNTRIES.map(magnetSkeleton).join("");
 
-  // Carga la foto de portada de cada país en paralelo, sin bloquear el render.
-  COUNTRIES.forEach(async (country) => {
-    const imgEl = document.querySelector(`[data-cover="${country.id}"]`);
-    try {
-      const photos = await fetchPhotoList(country.id);
-      if (photos.length > 0 && imgEl) {
-        imgEl.src = photos[0].url;
-        imgEl.alt = `Recuerdo de ${country.nombre}`;
+  // Carga las portadas en paralelo. Con el catálogo esto es instantáneo
+  // (no hay una petición de red por imán); sin él, cae al fallback.
+  await Promise.allSettled(
+    COUNTRIES.map(async (country) => {
+      const frame = board.querySelector(`[data-cover="${country.id}"]`);
+      if (!frame) return;
+      const img = frame.querySelector("img");
+      try {
+        const cover = await fetchAlbumCover(country.id);
+        if (!cover) {
+          frame.classList.remove("is-loading");
+          frame.classList.add("is-empty");
+          return;
+        }
+        img.addEventListener(
+          "load",
+          () => {
+            frame.classList.remove("is-loading");
+            frame.classList.add("is-loaded");
+          },
+          { once: true }
+        );
+        img.addEventListener(
+          "error",
+          () => {
+            frame.classList.remove("is-loading");
+            frame.classList.add("is-empty");
+          },
+          { once: true }
+        );
+        img.src = cover;
+        img.alt = `Recuerdo de ${country.nombre}`;
+      } catch {
+        frame.classList.remove("is-loading");
+        frame.classList.add("is-empty");
       }
-    } catch (err) {
-      // Sin conexión al repo todavía (p.ej. estás probando en local
-      // antes de subirlo a GitHub). El imán se queda con el fondo neutro.
-      console.warn(`No se pudo cargar la portada de ${country.nombre}:`, err);
-    }
-  });
+    })
+  );
 
   function magnetSkeleton(c) {
+    const nombre = escapeHtml(c.nombre);
+    const fecha = escapeHtml(c.fecha || "");
+    const nota = escapeHtml(c.nota || "");
     return `
-      <a class="magnet" href="album.html?id=${encodeURIComponent(c.id)}">
+      <a class="magnet" href="album.html?id=${encodeURIComponent(c.id)}" aria-label="${nombre}${fecha ? ", " + fecha : ""}">
         <span class="magnet-pin" aria-hidden="true"></span>
-        <img class="magnet-photo" data-cover="${c.id}" alt="" loading="lazy" />
-        <span class="magnet-flag" aria-hidden="true">${c.bandera || ""}</span>
+        <span class="magnet-frame is-loading" data-cover="${escapeHtml(c.id)}">
+          <img class="magnet-photo" alt="" loading="lazy" decoding="async" />
+          <span class="magnet-flag" aria-hidden="true">${escapeHtml(c.bandera || "")}</span>
+        </span>
         <span class="magnet-caption">
-          <span class="magnet-name">${c.nombre}</span>
-          <span class="magnet-date">${c.fecha || ""}</span>
+          <span class="magnet-name">${nombre}</span>
+          <span class="magnet-date">${fecha}</span>
+          ${nota ? `<span class="magnet-note">${nota}</span>` : ""}
         </span>
       </a>`;
   }

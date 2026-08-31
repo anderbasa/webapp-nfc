@@ -1,11 +1,9 @@
-// Va a buscar la lista de fotos de un país directamente a la carpeta
-// /photos/<id> de tu repositorio de GitHub. Así, para añadir o cambiar
-// fotos, solo tienes que subir/borrar imágenes en esa carpeta desde la
-// propia web de GitHub — nunca hace falta tocar código.
+// FALLBACK — solo se usa si data/photos.json todavía no existe
+// (por ejemplo, abriendo index.html en local sin haber hecho
+// "npm run build", o si la Action de despliegue aún no ha corrido).
 //
-// Mientras no hayas configurado tu usuario real en js/config.js (o si
-// aún no tienes conexión), se usan las fotos de muestra que vienen en
-// este proyecto, para que puedas ver cómo queda todo desde ya.
+// En condiciones normales el sitio lee el catálogo estático que genera
+// la Action y NO llama a la API de GitHub. Ver js/photos.js.
 
 const DEMO_PHOTOS = {
   italia: ["01.jpg", "02.jpg", "03.jpg", "04.jpg"],
@@ -14,6 +12,7 @@ const DEMO_PHOTOS = {
 };
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
+const API_TTL_MS = 10 * 60 * 1000; // cachea la respuesta de la API 10 min
 
 function isDemoMode() {
   return (
@@ -24,49 +23,78 @@ function isDemoMode() {
 }
 
 function prettyCaption(filename) {
-  const base = filename.replace(IMAGE_EXT, "");
-  const cleaned = base.replace(/[-_]+/g, " ").trim();
-  // Si el nombre es solo números (ej. "01", "IMG_2043"), no mostramos nada.
-  if (/^\d+$/.test(cleaned) || /^img\s*\d+$/i.test(cleaned)) return "";
-  return cleaned;
+  const raw = filename.replace(IMAGE_EXT, "").replace(/[-_]+/g, " ").trim();
+  const junk = [
+    /^\d+$/,
+    /^img[\s_]*\d+/i,
+    /^dscn?\d+/i,
+    /^pxl[\s_]*\d+/i,
+    /^screenshot/i,
+    /^captura/i,
+    /^dji[\s_]*fly/i,
+    /^[0-9a-f]{6,}(\s+[0-9a-f]{2,})*$/i, // hex / UUID troceado
+    /^whatsapp/i,
+  ];
+  if (raw.length < 2 || junk.some((re) => re.test(raw))) return "";
+  return raw;
+}
+
+// Redimensiona vía un CDN gratuito para que el fallback tampoco cargue
+// fotos de 3 MB (images.weserv.nl / wsrv.nl).
+function optimized(rawUrl, width) {
+  const host = rawUrl.replace(/^https?:\/\//, "");
+  return `https://wsrv.nl/?url=${encodeURIComponent(host)}&w=${width}&output=webp&q=80`;
 }
 
 function localDemoList(countryId) {
   const files = DEMO_PHOTOS[countryId] || [];
   return files.map((f) => ({
+    type: "photo",
     url: `photos/${countryId}/${f}`,
+    thumb: `photos/${countryId}/${f}`,
     caption: prettyCaption(f),
   }));
 }
 
-async function fetchPhotoList(countryId) {
-  if (isDemoMode()) {
-    return localDemoList(countryId);
-  }
+async function fetchPhotoListFallback(countryId) {
+  if (isDemoMode()) return localDemoList(countryId);
 
   const { githubUser, githubRepo, branch } = SITE_CONFIG;
+  const cacheKey = `gh:${githubUser}/${githubRepo}/${branch}/${countryId}`;
+
+  try {
+    const hit = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+    if (hit && Date.now() - hit.t < API_TTL_MS) return hit.list;
+  } catch {
+    /* sessionStorage no disponible */
+  }
+
   const apiUrl = `https://api.github.com/repos/${githubUser}/${githubRepo}/contents/photos/${encodeURIComponent(
     countryId
   )}?ref=${encodeURIComponent(branch)}`;
 
-  const res = await fetch(apiUrl, {
-    headers: { Accept: "application/vnd.github+json" },
-  });
-
-  if (res.status === 404) {
-    // La carpeta aún no existe o está vacía: no es un error, simplemente no hay fotos.
-    return [];
+  const res = await fetch(apiUrl, { headers: { Accept: "application/vnd.github+json" } });
+  if (res.status === 404) return [];
+  if (res.status === 403) {
+    throw new Error("límite de la API de GitHub alcanzado (falta desplegar con la Action)");
   }
-  if (!res.ok) {
-    throw new Error(`GitHub API respondió ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`GitHub API respondió ${res.status}`);
 
   const items = await res.json();
-  return items
+  const list = items
     .filter((item) => item.type === "file" && IMAGE_EXT.test(item.name))
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .sort((a, b) => a.name.localeCompare(b.name, "es", { numeric: true }))
     .map((item) => ({
-      url: item.download_url,
+      type: "photo",
+      url: optimized(item.download_url, 2000),
+      thumb: optimized(item.download_url, 600),
       caption: prettyCaption(item.name),
     }));
+
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), list }));
+  } catch {
+    /* ignora si no hay espacio */
+  }
+  return list;
 }

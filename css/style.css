@@ -22,10 +22,24 @@
   --radius-paper: 3px;
   --shadow-pin: 0 10px 22px rgba(40, 22, 8, 0.35);
   --shadow-pin-hover: 0 18px 30px rgba(40, 22, 8, 0.42);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root { --paper: #ffffff; --ink: #000000; --ink-soft: #1c1c1c; }
+  .magnet, .polaroid, .ticket { border: 2px solid var(--ink); }
 }
 
 * { box-sizing: border-box; }
@@ -57,7 +71,6 @@ button {
   cursor: pointer;
 }
 
-/* Visible keyboard focus everywhere */
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
@@ -66,12 +79,28 @@ button:focus-visible,
   border-radius: 4px;
 }
 
+/* Skeleton mientras carga una foto */
+@keyframes shimmer {
+  from { background-position: -160% 0; }
+  to { background-position: 160% 0; }
+}
+.is-loading {
+  background-image: linear-gradient(
+    100deg,
+    var(--paper-dim) 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    var(--paper-dim) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
 /* ============================================================
    SHARED: header / wordmark
    ============================================================ */
 .site-header {
   text-align: center;
-  padding: 3.2rem 1.5rem 1.2rem;
+  padding: calc(3.2rem + var(--safe-top)) 1.5rem 1.2rem;
 }
 
 .wordmark {
@@ -90,6 +119,8 @@ button:focus-visible,
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(2.2rem, 6vw, 3.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
   color: var(--paper);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
   transform: rotate(-0.6deg);
@@ -104,7 +135,7 @@ button:focus-visible,
 }
 
 /* ============================================================
-   HOME — corkboard of magnets
+   HOME — corcho de imanes
    ============================================================ */
 .board {
   max-width: 1100px;
@@ -121,7 +152,7 @@ button:focus-visible,
   position: relative;
   width: 210px;
   background: var(--paper);
-  padding: 14px 14px 20px;
+  padding: 14px 14px 18px;
   border-radius: var(--radius-paper);
   box-shadow: var(--shadow-pin);
   display: block;
@@ -139,6 +170,12 @@ button:focus-visible,
   z-index: 5;
 }
 
+.magnet:active {
+  transform: scale(0.96);
+  transition: transform 90ms ease-out;
+  box-shadow: var(--shadow-pin);
+}
+
 .magnet-pin {
   position: absolute;
   top: -14px;
@@ -149,25 +186,50 @@ button:focus-visible,
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #ff8a73, var(--brick) 60%, var(--brick-dark) 100%);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.35), inset 0 -2px 3px rgba(0,0,0,0.25);
-  z-index: 2;
+  z-index: 3;
+}
+
+.magnet-frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--paper-dim);
 }
 
 .magnet-photo {
   width: 100%;
-  aspect-ratio: 4 / 5;
+  height: 100%;
   object-fit: cover;
-  border-radius: 2px;
-  filter: saturate(0.92);
-  background: var(--paper-dim);
   display: block;
+  filter: saturate(0.92);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.magnet-frame.is-loaded .magnet-photo { opacity: 1; }
+.magnet-frame.is-loaded { animation: none; background-image: none; }
+
+.magnet-frame.is-empty {
+  animation: none;
+  background-image: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.magnet-frame.is-empty::after {
+  content: "📷";
+  font-size: 1.8rem;
+  opacity: 0.35;
 }
 
 .magnet-flag {
   position: absolute;
-  bottom: 34px;
-  right: 20px;
+  bottom: 8px;
+  right: 8px;
   font-size: 1.6rem;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
+  z-index: 2;
 }
 
 .magnet-caption {
@@ -191,6 +253,16 @@ button:focus-visible,
   margin-top: 2px;
 }
 
+.magnet-note {
+  display: block;
+  font-family: var(--font-hand);
+  font-size: 0.95rem;
+  line-height: 1.15;
+  color: var(--ink-soft);
+  opacity: 0.72;
+  margin-top: 4px;
+}
+
 .board-empty {
   font-family: var(--font-hand);
   font-size: 1.4rem;
@@ -210,12 +282,12 @@ button:focus-visible,
 }
 
 /* ============================================================
-   ALBUM PAGE
+   ALBUM
    ============================================================ */
 .album-header {
   max-width: 900px;
   margin: 0 auto;
-  padding: 2.6rem 1.5rem 1rem;
+  padding: calc(2.6rem + var(--safe-top)) 1.5rem 1rem;
 }
 
 .back-link {
@@ -272,6 +344,8 @@ button:focus-visible,
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(1.8rem, 5vw, 2.6rem);
+  line-height: 1.06;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -294,11 +368,21 @@ button:focus-visible,
   margin: 0;
 }
 
-/* Gallery */
+.ticket-count {
+  font-family: var(--font-stamp);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  opacity: 0.6;
+  margin: 0.7rem 0 0;
+}
+
+/* Grid */
 .gallery {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 2.2rem 1.5rem 6rem;
+  padding: 2.2rem 1.5rem calc(6rem + var(--safe-bottom));
   display: flex;
   flex-wrap: wrap;
   gap: 2.4rem 1.8rem;
@@ -309,10 +393,13 @@ button:focus-visible,
   width: 230px;
   background: var(--paper);
   padding: 12px 12px 46px;
+  border: none;
   border-radius: 2px;
   box-shadow: var(--shadow-pin);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, z-index 0s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: 330px;
 }
 
 .polaroid:nth-child(4n+1) { transform: rotate(-3deg); }
@@ -327,12 +414,38 @@ button:focus-visible,
   z-index: 5;
 }
 
-.polaroid img {
-  width: 100%;
+.polaroid:active {
+  transform: scale(0.95);
+  transition: transform 90ms ease-out;
+}
+
+.polaroid-frame {
+  display: block;
+  position: relative;
   aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--paper-dim);
+}
+
+.polaroid-frame img,
+.polaroid--video video {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
-  background: var(--paper-dim);
+}
+.polaroid-frame img {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.polaroid-frame:not(.is-loading) img { opacity: 1; }
+
+.polaroid--video {
+  margin: 0;
+}
+.polaroid--video video {
+  aspect-ratio: 4 / 5;
+  background: #000;
 }
 
 .polaroid-caption {
@@ -344,6 +457,7 @@ button:focus-visible,
   font-family: var(--font-hand);
   font-size: 1.15rem;
   color: var(--ink-soft);
+  padding: 0 8px;
 }
 
 .gallery-empty {
@@ -383,43 +497,78 @@ button:focus-visible,
 }
 
 /* ============================================================
-   LIGHTBOX
+   VISOR — pista deslizable con física de resorte
    ============================================================ */
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(20, 12, 6, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 50;
-  padding: 2rem;
-  animation: fade-in 0.2s ease;
+  overflow: hidden;
+  --drag-y: 0px;
+  --drag-scale: 1;
 }
 
 .lightbox[hidden] { display: none; }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 11, 5, 0.94);
 }
 
-.lightbox img {
-  max-width: min(90vw, 900px);
-  max-height: 82vh;
-  object-fit: contain;
+.lightbox-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  touch-action: pan-y;
+  will-change: transform;
+  transform: translate3d(0, var(--drag-y), 0) scale(var(--drag-scale));
+}
+
+.lightbox-slide {
+  flex: 0 0 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.lightbox-media {
+  max-width: min(92vw, 960px);
+  max-height: 84vh;
   border: 10px solid var(--paper);
   border-radius: 2px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  background: var(--paper-dim);
+  line-height: 0;
+}
+.lightbox-media.is-loading {
+  min-width: 220px;
+  min-height: 280px;
+}
+
+.lightbox-media img {
+  max-width: 100%;
+  max-height: calc(84vh - 20px);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  display: block;
 }
 
 .lightbox-close,
 .lightbox-prev,
 .lightbox-next {
   position: absolute;
-  background: var(--paper);
-  color: var(--ink);
-  border: none;
+  z-index: 2;
+  background: rgba(251, 248, 242, 0.16);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: var(--paper);
   border-radius: 50%;
   width: 46px;
   height: 46px;
@@ -427,44 +576,68 @@ button:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 90ms ease-out, background 150ms ease;
 }
 
-.lightbox-close { top: 1.5rem; right: 1.5rem; }
-.lightbox-prev { left: 1.5rem; top: 50%; transform: translateY(-50%); }
-.lightbox-next { right: 1.5rem; top: 50%; transform: translateY(-50%); }
+.lightbox-close:active,
+.lightbox-prev:active,
+.lightbox-next:active {
+  transform: scale(0.9);
+  background: rgba(251, 248, 242, 0.3);
+}
 
-.lightbox-close:hover,
-.lightbox-prev:hover,
-.lightbox-next:hover {
-  background: var(--gold);
-  color: var(--paper);
+.lightbox-close {
+  top: calc(1.4rem + var(--safe-top));
+  right: calc(1.4rem + var(--safe-right));
+}
+.lightbox-prev {
+  left: calc(1.2rem + var(--safe-left));
+  top: 50%;
+  margin-top: -23px;
+}
+.lightbox-next {
+  right: calc(1.2rem + var(--safe-right));
+  top: 50%;
+  margin-top: -23px;
 }
 
 .lightbox-counter {
   position: absolute;
-  bottom: 1.6rem;
+  z-index: 2;
+  bottom: calc(1.5rem + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-stamp);
   color: var(--paper);
-  opacity: 0.8;
-  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lightbox-close, .lightbox-prev, .lightbox-next, .lightbox-counter {
+    background: var(--ink);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 @media (max-width: 560px) {
-  .lightbox-prev { left: 0.6rem; }
-  .lightbox-next { right: 0.6rem; }
+  .lightbox-prev { left: 0.5rem; }
+  .lightbox-next { right: 0.5rem; }
 
   .board {
     padding: 1.5rem 0.9rem 4rem;
-    gap: 1.6rem 0.9rem;
+    gap: 1.8rem 0.9rem;
   }
   .magnet { width: calc(50% - 0.45rem); }
 
   .gallery {
     padding: 1.5rem 0.9rem 4rem;
-    gap: 1.4rem 0.9rem;
+    gap: 1.6rem 0.9rem;
   }
   .polaroid { width: calc(50% - 0.45rem); }
 }

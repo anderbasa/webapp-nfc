@@ -9,120 +9,325 @@
   if (!country) {
     headerEl.innerHTML = `
       <a class="back-link" href="index.html">&larr; volver al corcho</a>
-      <div class="ticket"><p class="ticket-note">No encuentro ese viaje. Revisa el enlace del imán, o añade este país en <code>js/countries.js</code>.</p></div>`;
+      <div class="ticket"><p class="ticket-note">No encuentro ese viaje. Revisa el enlace del imán, o añádelo en <code>js/countries.js</code>.</p></div>`;
     return;
   }
 
-  document.title = `${country.nombre} — Diario de viajes`;
+  document.title = `${country.nombre} — UDA 2026`;
+
+  const bandera = escapeHtml(country.bandera || "");
+  const nombre = escapeHtml(country.nombre);
+  const fecha = escapeHtml(country.fecha || "");
+  const nota = escapeHtml(country.nota || "");
 
   headerEl.innerHTML = `
     <a class="back-link" href="index.html">&larr; volver al corcho</a>
     <div class="ticket">
       <div class="ticket-row">
-        <span class="ticket-country">${country.bandera || ""} ${country.nombre}</span>
-        <span class="ticket-stamp">${country.fecha || ""}</span>
+        <span class="ticket-country">${bandera} ${nombre}</span>
+        <span class="ticket-stamp">${fecha}</span>
       </div>
-      <p class="ticket-note">${country.nota || ""}</p>
+      ${nota ? `<p class="ticket-note">${nota}</p>` : ""}
+      <p class="ticket-count" id="ticket-count" hidden></p>
     </div>`;
 
   galleryEl.innerHTML = `<p class="gallery-loading">Revelando fotos…</p>`;
 
-  let photos = [];
+  let entries = [];
   try {
-    photos = await fetchPhotoList(country.id);
+    entries = await fetchPhotoList(country.id);
   } catch (err) {
     galleryEl.innerHTML = `
       <p class="gallery-error">
         No he podido cargar las fotos de este viaje.<br>
-        Comprueba que en <code>js/config.js</code> tienes bien puesto tu usuario
-        y repositorio de GitHub, y que el repositorio es público.<br>
-        <em>Detalle técnico: ${err.message}</em>
+        <em>Detalle técnico: ${escapeHtml(err.message)}</em>
       </p>`;
     return;
   }
 
-  if (photos.length === 0) {
-    galleryEl.innerHTML = `<p class="gallery-empty">Todavía no hay fotos aquí.<br>Sube alguna a la carpeta <code>photos/${country.id}</code> en GitHub y aparecerán solas.</p>`;
+  if (entries.length === 0) {
+    galleryEl.innerHTML = `<p class="gallery-empty">Todavía no hay fotos aquí.<br>Sube alguna a la carpeta <code>photos/${escapeHtml(country.id)}</code> y aparecerán solas.</p>`;
     return;
   }
 
-  galleryEl.innerHTML = photos
-    .map(
-      (p, i) => `
-      <button class="polaroid" data-index="${i}" aria-label="Ver foto ${i + 1} de ${photos.length}${p.caption ? ": " + p.caption : ""}">
-        <img src="${p.url}" alt="${p.caption || `Foto ${i + 1} de ${country.nombre}`}" loading="lazy" />
-        ${p.caption ? `<span class="polaroid-caption">${p.caption}</span>` : ""}
-      </button>`
-    )
+  const photos = entries.filter((e) => e.type !== "video");
+  const countEl = document.getElementById("ticket-count");
+  if (countEl) {
+    const nP = photos.length;
+    const nV = entries.length - nP;
+    countEl.textContent =
+      `${nP} foto${nP === 1 ? "" : "s"}` + (nV ? ` · ${nV} vídeo${nV === 1 ? "" : "s"}` : "");
+    countEl.hidden = false;
+  }
+
+  let photoIndex = -1; // índice dentro de `photos` para el visor
+  galleryEl.innerHTML = entries
+    .map((e, i) => {
+      if (e.type === "video") {
+        const poster = e.poster ? ` poster="${escapeHtml(e.poster)}"` : "";
+        return `
+          <figure class="polaroid polaroid--video">
+            <video src="${escapeHtml(e.url)}"${poster} controls preload="none" playsinline></video>
+            ${e.caption ? `<figcaption class="polaroid-caption">${escapeHtml(e.caption)}</figcaption>` : ""}
+          </figure>`;
+      }
+      photoIndex++;
+      const label = e.caption
+        ? `${escapeHtml(e.caption)}`
+        : `Foto ${photoIndex + 1} de ${photos.length}`;
+      return `
+        <button class="polaroid" data-photo="${photoIndex}" aria-label="Ampliar: ${label}">
+          <span class="polaroid-frame is-loading">
+            <img src="${escapeHtml(e.thumb || e.url)}" alt="${escapeHtml(e.caption || `Foto ${photoIndex + 1} de ${country.nombre}`)}"
+                 loading="lazy" decoding="async"
+                 onload="this.parentNode.classList.remove('is-loading')" />
+          </span>
+          ${e.caption ? `<span class="polaroid-caption">${escapeHtml(e.caption)}</span>` : ""}
+        </button>`;
+    })
     .join("");
 
-  setupLightbox(photos);
+  if (photos.length > 0) setupLightbox(photos, country);
 
-  function setupLightbox(photos) {
+  // ============================================================
+  // VISOR — arrastrar 1:1, deslizar con impulso real, cerrar
+  // arrastrando hacia abajo. Interrumpible en cualquier instante,
+  // como el visor de Fotos del iPhone. Las diapositivas cargan la
+  // imagen grande solo cuando hacen falta (actual ± 1).
+  // ============================================================
+  function setupLightbox(photos, country) {
     const lightbox = document.getElementById("lightbox");
-    const lbImg = document.getElementById("lightbox-img");
+    const track = document.getElementById("lightbox-track");
+    const backdrop = document.getElementById("lightbox-backdrop");
     const lbCounter = document.getElementById("lightbox-counter");
-    let current = 0;
+    const closeBtn = lightbox.querySelector(".lightbox-close");
+    const prevBtn = lightbox.querySelector(".lightbox-prev");
+    const nextBtn = lightbox.querySelector(".lightbox-next");
 
-    function open(index) {
-      current = index;
-      render();
-      lightbox.hidden = false;
-      lightbox.querySelector(".lightbox-close").focus();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let index = 0;
+    let slideWidth = 0;
+    let lastFocus = null;
+
+    const xSpring = new Spring({ dampingRatio: 1, response: 0.32 });
+    const ySpring = new Spring({ dampingRatio: 1, response: 0.3 });
+    const scaleSpring = new Spring({ value: 1, dampingRatio: 1, response: 0.3 });
+    const fadeSpring = new Spring({ value: 1, dampingRatio: 1, response: 0.3 });
+
+    track.innerHTML = photos
+      .map(
+        (p, i) => `
+        <div class="lightbox-slide" data-slide="${i}">
+          <div class="lightbox-media is-loading">
+            <img alt="${escapeHtml(p.caption || `Foto ${i + 1} de ${country.nombre}`)}" draggable="false" />
+          </div>
+        </div>`
+      )
+      .join("");
+    const slideMedia = [...track.querySelectorAll(".lightbox-media")];
+
+    function loadNeighbours() {
+      for (let i = index - 1; i <= index + 1; i++) {
+        const media = slideMedia[i];
+        if (!media) continue;
+        const img = media.querySelector("img");
+        if (!img.src) {
+          img.addEventListener("load", () => media.classList.remove("is-loading"), { once: true });
+          img.src = photos[i].url;
+        }
+      }
+    }
+
+    function measure() {
+      slideWidth = lightbox.clientWidth;
+    }
+
+    function applyTransforms() {
+      track.style.transform = `translate3d(${-index * slideWidth + xSpring.value}px, 0, 0)`;
+      lightbox.style.setProperty("--drag-y", `${ySpring.value}px`);
+      lightbox.style.setProperty("--drag-scale", scaleSpring.value);
+      backdrop.style.opacity = fadeSpring.value;
+    }
+
+    function updateCounter() {
+      lbCounter.textContent = `${index + 1} / ${photos.length}`;
+    }
+
+    function open(i) {
+      lastFocus = document.activeElement;
+      index = i;
+      lightbox.hidden = false; // visible antes de medir, si no clientWidth es 0
+      measure();
+      xSpring.set(0);
+      ySpring.set(0);
+      scaleSpring.set(1);
+      fadeSpring.set(1);
+      applyTransforms();
+      loadNeighbours();
+      updateCounter();
+      closeBtn.focus();
       document.body.style.overflow = "hidden";
     }
 
     function close() {
-      lightbox.hidden = true;
       document.body.style.overflow = "";
+      lightbox.hidden = true;
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
     }
 
-    function render() {
-      const p = photos[current];
-      lbImg.src = p.url;
-      lbImg.alt = p.caption || `Foto ${current + 1} de ${country.nombre}`;
-      lbCounter.textContent = `${current + 1} / ${photos.length}`;
+    function settleClosed() {
+      xSpring.set(0);
+      ySpring.set(0);
+      scaleSpring.set(1);
+      fadeSpring.set(1);
+      close();
     }
 
-    function next() {
-      current = (current + 1) % photos.length;
-      render();
+    function goTo(newIndex) {
+      const clamped = Math.max(0, Math.min(photos.length - 1, newIndex));
+      if (clamped === index) return;
+      const direction = clamped > index ? 1 : -1;
+      index = clamped;
+      updateCounter();
+      loadNeighbours();
+      if (reduceMotion) {
+        xSpring.set(0);
+        applyTransforms();
+        return;
+      }
+      xSpring.value = direction * slideWidth;
+      xSpring.velocity = 0;
+      xSpring.retarget(0);
+      runSprings([xSpring], applyTransforms);
     }
 
-    function prev() {
-      current = (current - 1 + photos.length) % photos.length;
-      render();
+    // -------- Gestos --------
+    let dragging = false;
+    let dragAxis = null;
+    let startX = 0;
+    let startY = 0;
+    let history = [];
+
+    function onPointerDown(e) {
+      if (e.target.closest("button")) return;
+      dragging = true;
+      dragAxis = null;
+      startX = e.clientX;
+      startY = e.clientY;
+      history = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+      track.setPointerCapture(e.pointerId);
     }
 
-    galleryEl.querySelectorAll(".polaroid").forEach((btn) => {
-      btn.addEventListener("click", () => open(Number(btn.dataset.index)));
+    function onPointerMove(e) {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (!dragAxis) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        dragAxis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      }
+
+      history.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+      if (history.length > 5) history.shift();
+
+      if (dragAxis === "x") {
+        let effectiveDx = dx;
+        const atStart = index === 0 && dx > 0;
+        const atEnd = index === photos.length - 1 && dx < 0;
+        if (atStart || atEnd) effectiveDx = dx * 0.35;
+        xSpring.set(effectiveDx);
+        applyTransforms();
+      } else {
+        ySpring.set(dy);
+        const dragRatio = Math.min(Math.abs(dy) / 400, 1);
+        scaleSpring.set(1 - dragRatio * 0.18);
+        fadeSpring.set(1 - dragRatio * 0.6);
+        applyTransforms();
+      }
+    }
+
+    function velocityFromHistory() {
+      if (history.length < 2) return { vx: 0, vy: 0 };
+      const first = history[0];
+      const last = history[history.length - 1];
+      const dt = Math.max((last.t - first.t) / 1000, 0.001);
+      return { vx: (last.x - first.x) / dt, vy: (last.y - first.y) / dt };
+    }
+
+    function onPointerUp() {
+      if (!dragging) return;
+      dragging = false;
+      const { vx, vy } = velocityFromHistory();
+
+      if (dragAxis === "x") {
+        const threshold = slideWidth * 0.22;
+        const flick = Math.abs(vx) > 500;
+        xSpring.velocity = vx;
+        if ((xSpring.value < -threshold || (flick && vx < 0)) && index < photos.length - 1) {
+          index += 1;
+          xSpring.value += slideWidth;
+        } else if ((xSpring.value > threshold || (flick && vx > 0)) && index > 0) {
+          index -= 1;
+          xSpring.value -= slideWidth;
+        }
+        updateCounter();
+        loadNeighbours();
+        xSpring.retarget(0);
+        runSprings([xSpring], applyTransforms);
+      } else if (dragAxis === "y") {
+        const shouldDismiss = Math.abs(ySpring.value) > 120 || Math.abs(vy) > 700;
+        if (shouldDismiss && !reduceMotion) {
+          const direction = ySpring.value >= 0 ? 1 : -1;
+          ySpring.velocity = vy;
+          ySpring.retarget(direction * window.innerHeight);
+          scaleSpring.retarget(0.85);
+          fadeSpring.retarget(0);
+          runSprings([ySpring, scaleSpring, fadeSpring], applyTransforms, settleClosed);
+        } else {
+          ySpring.velocity = vy;
+          ySpring.retarget(0);
+          scaleSpring.retarget(1);
+          fadeSpring.retarget(1);
+          runSprings([ySpring, scaleSpring, fadeSpring], applyTransforms);
+        }
+      }
+      dragAxis = null;
+    }
+
+    track.addEventListener("pointerdown", onPointerDown);
+    track.addEventListener("pointermove", onPointerMove);
+    track.addEventListener("pointerup", onPointerUp);
+    track.addEventListener("pointercancel", onPointerUp);
+
+    galleryEl.querySelectorAll(".polaroid[data-photo]").forEach((btn) => {
+      btn.addEventListener("click", () => open(Number(btn.dataset.photo)));
     });
 
-    lightbox.querySelector(".lightbox-close").addEventListener("click", close);
-    lightbox.querySelector(".lightbox-next").addEventListener("click", next);
-    lightbox.querySelector(".lightbox-prev").addEventListener("click", prev);
-    lightbox.addEventListener("click", (e) => {
-      if (e.target === lightbox) close();
+    closeBtn.addEventListener("click", () => {
+      if (reduceMotion) return settleClosed();
+      ySpring.retarget(window.innerHeight);
+      scaleSpring.retarget(0.85);
+      fadeSpring.retarget(0);
+      runSprings([ySpring, scaleSpring, fadeSpring], applyTransforms, settleClosed);
     });
+    nextBtn.addEventListener("click", () => goTo(index + 1));
+    prevBtn.addEventListener("click", () => goTo(index - 1));
+    backdrop.addEventListener("click", () => closeBtn.click());
 
     document.addEventListener("keydown", (e) => {
       if (lightbox.hidden) return;
-      if (e.key === "Escape") close();
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
+      if (e.key === "Escape") closeBtn.click();
+      if (e.key === "ArrowRight") goTo(index + 1);
+      if (e.key === "ArrowLeft") goTo(index - 1);
     });
 
-    // Deslizar con el dedo en móvil
-    let touchStartX = null;
-    lightbox.addEventListener("touchstart", (e) => {
-      touchStartX = e.changedTouches[0].clientX;
-    });
-    lightbox.addEventListener("touchend", (e) => {
-      if (touchStartX === null) return;
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      if (dx > 50) prev();
-      if (dx < -50) next();
-      touchStartX = null;
+    window.addEventListener("resize", () => {
+      if (lightbox.hidden) return;
+      measure();
+      xSpring.set(0);
+      applyTransforms();
     });
   }
 })();
