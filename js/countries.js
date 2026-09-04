@@ -77,13 +77,13 @@ const COUNTRIES = [
     nombre: "Aste Nagusi",
     bandera: "🪆",
     fecha: "Abustuak 23-30",
-    nota: "",
+    nota: "Ay amatxu que cerca estuviste de pillarnos...",
   },
   {
     id: "lekeitio",
     nombre: "Lekeitio",
     bandera: "🦆",
     fecha: "Irailak 1-5",
-    nota: "",
+    nota: "Lo mejor siempre para el final",
   },
 ];
